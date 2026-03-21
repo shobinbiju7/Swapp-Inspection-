@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWAPP — Fleet Maintenance Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080b12;--s1:#0d1117;--s2:#131923;--s3:#1a2232;
+  --border:#1e2a3a;--border2:#243044;
+  --accent:#2563eb;--accent-h:#1d4ed8;
+  --cyan:#0891b2;--green:#059669;--yellow:#d97706;
+  --red:#dc2626;--purple:#7c3aed;--orange:#ea580c;
+  --text:#dde4f0;--text2:#8fa3bf;--text3:#4a6080;
+  --font:'Instrument Sans',sans-serif;--mono:'DM Mono',monospace;
+  --r:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;font-size:14px}
+
+/* ── SETUP SCREEN ── */
+#setupScreen{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center}
+.setup-box{width:480px;background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:36px;display:flex;flex-direction:column;gap:20px}
+.setup-logo{display:flex;align-items:center;gap:12px}
+.setup-mark{width:42px;height:42px;background:var(--accent);border-radius:10px;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:#fff;font-weight:500}
+.setup-title{font-size:22px;font-weight:700;letter-spacing:-.3px}
+.setup-title span{color:var(--accent)}
+.setup-desc{font-size:13px;color:var(--text2);line-height:1.6}
+.setup-field{display:flex;flex-direction:column;gap:6px}
+.setup-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.setup-field input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:.2s;width:100%}
+.setup-field input:focus{border-color:var(--accent)}
+.setup-field input::placeholder{color:var(--text3)}
+.setup-hint{font-size:11px;color:var(--text3);line-height:1.5}
+.setup-hint a{color:var(--accent);text-decoration:none}
+.setup-btn{padding:12px;border-radius:9px;background:var(--accent);border:none;color:#fff;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:.15s;text-align:center}
+.setup-btn:hover{background:var(--accent-h)}
+.setup-err{font-size:12px;color:var(--red);display:none}
+
+/* ── NAV ── */
+nav{display:flex;align-items:center;gap:0;padding:0 24px;background:var(--s1);border-bottom:1px solid var(--border);height:52px;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:9px;margin-right:24px;flex-shrink:0}
+.brand-mark{width:28px;height:28px;background:var(--accent);border-radius:6px;display:grid;place-items:center;font-family:var(--mono);font-size:10px;color:#fff}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.brand-name em{color:var(--accent);font-style:normal}
+.nav-tabs{display:flex;height:100%;flex:1}
+.ntab{padding:0 16px;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap;font-family:var(--font)}
+.ntab:hover{color:var(--text2)}
+.ntab.on{color:var(--text);border-bottom-color:var(--accent)}
+.ntab .badge-pill{background:var(--s3);color:var(--text2);font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:20px}
+.ntab.on .badge-pill{background:rgba(37,99,235,.2);color:var(--accent)}
+.nav-right{display:flex;align-items:center;gap:14px;flex-shrink:0;margin-left:auto}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(5,150,105,.4);animation:livepulse 2s infinite}
+@keyframes livepulse{0%{box-shadow:0 0 0 0 rgba(5,150,105,.4)}70%{box-shadow:0 0 0 6px rgba(5,150,105,0)}100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}}
+.live-lbl{font-size:11px;font-family:var(--mono);color:var(--green);display:flex;align-items:center;gap:5px}
+#clock{font-size:11px;font-family:var(--mono);color:var(--text3)}
+.sync-btn{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font);transition:.15s}
+.sync-btn:hover{background:var(--s2);color:var(--text)}
+.sync-btn.spinning svg{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.settings-btn{padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;transition:.15s}
+.settings-btn:hover{color:var(--text);background:var(--s2)}
+
+/* ── MAIN ── */
+main{padding:20px 24px;display:flex;flex-direction:column;gap:14px;max-width:1600px;margin:0 auto}
+.page{display:none;flex-direction:column;gap:14px}
+.page.on{display:flex}
+
+/* ── KPI ROW ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden;transition:border-color .2s}
+.kpi:hover{border-color:var(--border2)}
+.kpi-stripe{position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}
+.kpi-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:7px}
+.kpi-num{font-family:var(--mono);font-size:30px;font-weight:400;line-height:1;letter-spacing:-.5px}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:5px;font-family:var(--mono)}
+
+/* ── ALERT ── */
+.alert-bar{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-left:3px solid var(--red);border-radius:var(--r);padding:11px 16px;display:flex;align-items:center;gap:12px}
+.alert-bar.warn{background:rgba(217,119,6,.06);border-color:rgba(217,119,6,.2);border-left-color:var(--yellow)}
+.alert-bar-body{flex:1;font-size:12px;line-height:1.5}
+.alert-bar-body strong{color:var(--red)}
+.alert-bar.warn .alert-bar-body strong{color:var(--yellow)}
+.alert-num{font-family:var(--mono);font-size:24px;color:var(--red)}
+.alert-bar.warn .alert-num{color:var(--yellow)}
+
+/* ── CHART ROW ── */
+.chart-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.panel{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.panel-hd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:12px}
+
+/* STATUS BARS */
+.sb-list{display:flex;flex-direction:column;gap:9px}
+.sb-item{display:flex;flex-direction:column;gap:4px}
+.sb-top{display:flex;justify-content:space-between;font-size:11px}
+.sb-name{color:var(--text2)}
+.sb-val{font-family:var(--mono);color:var(--text3)}
+.sb-bg{height:4px;background:var(--s3);border-radius:2px;overflow:hidden}
+.sb-fill{height:100%;border-radius:2px;transition:width 1s ease}
+
+/* STACK ITEMS */
+.stack{display:flex;flex-direction:column;gap:7px}
+.stack-item{display:flex;align-items:center;justify-content:space-between;padding:7px 11px;border-radius:8px;background:var(--s2);border:1px solid var(--border)}
+.stack-l{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500}
+.stack-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.stack-n{font-family:var(--mono);font-size:18px;font-weight:400}
+
+/* ── TABLE CARD ── */
+.tc{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.tc-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.tc-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+.tc-tools{display:flex;align-items:center;gap:8px}
+.tscroll{overflow-x:auto;max-height:400px;overflow-y:auto}
+table{width:100%;border-collapse:collapse}
+th{padding:8px 13px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);background:var(--s2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;white-space:nowrap}
+td{padding:10px 13px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.012)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);font-family:var(--font);transition:.15s;white-space:nowrap}
+.btn:hover{background:var(--s2);color:var(--text)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{background:var(--accent-h)}
+.btn.sm{padding:4px 9px;font-size:10px}
+.btn.danger{background:rgba(220,38,38,.1);border-color:rgba(220,38,38,.3);color:var(--red)}
+
+/* ── BADGES ── */
+.b{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;font-family:var(--mono);white-space:nowrap;letter-spacing:.02em}
+.b-insp{background:rgba(8,145,178,.12);color:var(--cyan);border:1px solid rgba(8,145,178,.25)}
+.b-maint{background:rgba(217,119,6,.12);color:var(--yellow);border:1px solid rgba(217,119,6,.25)}
+.b-avail{background:rgba(5,150,105,.12);color:var(--green);border:1px solid rgba(5,150,105,.25)}
+.b-road{background:rgba(37,99,235,.12);color:var(--accent);border:1px solid rgba(37,99,235,.25)}
+.b-unavail{background:rgba(74,96,128,.08);color:var(--text3);border:1px solid rgba(74,96,128,.2)}
+.b-inhouse{background:rgba(8,145,178,.1);color:var(--cyan);border:1px solid rgba(8,145,178,.2)}
+.b-cars24{background:rgba(234,88,12,.1);color:var(--orange);border:1px solid rgba(234,88,12,.2)}
+.b-cusier{background:rgba(124,58,237,.1);color:var(--purple);border:1px solid rgba(124,58,237,.2)}
+.b-supplier{background:rgba(220,38,38,.1);color:var(--red);border:1px solid rgba(220,38,38,.2)}
+.b-unset{background:transparent;color:var(--text3);border:1px dashed var(--border2);cursor:pointer}
+.b-unset:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── DAY CHIPS ── */
+.dc{display:inline-block;padding:2px 7px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.02em}
+.dc-ok{background:rgba(5,150,105,.1);color:var(--green)}
+.dc-warn{background:rgba(217,119,6,.1);color:var(--yellow)}
+.dc-bad{background:rgba(220,38,38,.1);color:var(--red)}
+.dc-crit{background:rgba(220,38,38,.18);color:var(--red);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ── PRIORITY FLAGS ── */
+.pf{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;font-family:var(--mono)}
+.pf-crit{background:rgba(220,38,38,.12);color:var(--red)}
+.pf-collect{background:rgba(217,119,6,.12);color:var(--yellow)}
+
+/* ── FILTER BAR ── */
+.fbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fbar input,.fbar select,.finput,.fselect{background:var(--s1);border:1px solid var(--border);border-radius:7px;padding:6px 11px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;transition:.15s}
+.fbar input:focus,.fbar select:focus,.finput:focus,.fselect:focus{border-color:var(--accent)}
+.fbar select option,.fselect option{background:var(--s1)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:500;backdrop-filter:blur(4px)}
+.overlay.on{display:grid}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:14px;padding:24px;width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 48px rgba(0,0,0,.5)}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:4px}
+.modal .modal-sub{font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.5}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.fg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.fg input,.fg select,.fg textarea{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;transition:.2s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent)}
+.fg select option{background:var(--s1)}
+.fg textarea{resize:vertical;min-height:70px;line-height:1.5}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* ── INLINE ASSIGN ── */
+.mini-sel{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 7px;color:var(--text);font-size:10px;font-family:var(--font);outline:none;cursor:pointer;transition:.15s}
+.mini-sel:focus{border-color:var(--accent)}
+.assign-wrap{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+
+/* ── LOADING / EMPTY ── */
+.loading-row td,.empty-row td{text-align:center;padding:28px;color:var(--text3);font-size:12px}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:11px 16px;font-size:12px;z-index:999;transform:translateY(60px);opacity:0;transition:.25s;pointer-events:none;max-width:300px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.ok{border-color:rgba(5,150,105,.4);color:var(--green)}
+#toast.err{border-color:rgba(220,38,38,.4);color:var(--red)}
+#toast.info{border-color:rgba(37,99,235,.4);color:#93c5fd}
+
+/* ── PRIORITY PAGE ── */
+.pri-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pri-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.pri-card.crit{border-color:rgba(220,38,38,.3)}
+.pri-card.warn-c{border-color:rgba(217,119,6,.25)}
+.pri-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.pri-hd.crit{background:rgba(220,38,38,.04)}
+.pri-hd.warn-c{background:rgba(217,119,6,.03)}
+.pri-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.pri-n{font-family:var(--mono);font-size:22px;font-weight:400}
+
+/* ── PLATE STYLE ── */
+.plate{font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.dim{color:var(--text3);font-size:11px}
+
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.chart-row{grid-template-columns:1fr}}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.nav-tabs{overflow-x:auto}.pri-row{grid-template-columns:1fr}}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     SETUP SCREEN (first-time config)
+══════════════════════════════════════════ -->
+<div id="setupScreen">
+  <div class="setup-box">
+    <div class="setup-logo">
+      <div class="setup-mark">SW</div>
+      <div class="setup-title">SW<span>APP</span> Fleet Tracker</div>
+    </div>
+    <div class="setup-desc">
+      Enter your Claude API key to connect this dashboard to your live Redash data.
+      This key is saved only in your browser — never shared with anyone.
+    </div>
+    <div class="setup-field">
+      <label>Claude API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off">
+    </div>
+    <div class="setup-hint">
+      Get your free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> →
+      API Keys → Create Key. Cost is ~$1–3/month for your usage.
+    </div>
+    <div class="setup-err" id="setupErr">Invalid key — please check and try again.</div>
+    <button class="setup-btn" onclick="saveApiKey()">Connect & Launch Dashboard →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     NAV
+══════════════════════════════════════════ -->
+<nav id="mainNav" style="display:none">
+  <div class="brand">
+    <div class="brand-mark">SW</div>
+    <div class="brand-name">SW<em>APP</em> Fleet</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="ntab on" onclick="go('dash')">
+      📊 Dashboard <span class="badge-pill" id="tab-insp-count">—</span>
+    </button>
+    <button class="ntab" onclick="go('inspection')">🔍 In Inspection</button>
+    <button class="ntab" onclick="go('workshop')">🔧 Workshop</button>
+    <button class="ntab" onclick="go('priorities')">
+      🚨 Priorities <span class="badge-pill" id="tab-pri-count" style="background:rgba(220,38,38,.15);color:var(--red)">—</span>
+    </button>
+    <button class="ntab" onclick="go('fleet')">🚗 All Fleet</button>
+  </div>
+  <div class="nav-right">
+    <div class="live-lbl"><span class="live-dot"></span>LIVE</div>
+    <span id="clock"></span>
+    <button class="sync-btn" id="syncBtn" onclick="syncAll()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16"/></svg>
+      Sync
+    </button>
+    <button class="settings-btn" onclick="openModal('settingsModal')" title="Settings">⚙</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════
+     MAIN PAGES
+══════════════════════════════════════════ -->
+<main id="mainContent" style="display:none">
+
+  <!-- ── DASHBOARD ── -->
+  <div class="page on" id="dash">
+    <div id="alertZone"></div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--cyan)"></div><div class="kpi-lbl">In Inspection</div><div class="kpi-num" id="k0" style="color:var(--cyan)">—</div><div class="kpi-sub">clock running</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--yellow)"></div><div class="kpi-lbl">In Workshop</div><div class="kpi-num" id="k1" style="color:var(--yellow)">—</div><div class="kpi-sub">maintenance</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--green)"></div><div class="kpi-lbl">Available</div><div class="kpi-num" id="k2" style="color:var(--green)">—</div><div class="kpi-sub">ready to deploy</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--accent)"></div><div class="kpi-lbl">On Road</div><div class="kpi-num" id="k3" style="color:var(--accent)">—</div><div class="kpi-sub">active leases</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--red)"></div><div class="kpi-lbl">Overdue &gt;5 Days</div><div class="kpi-num" id="k4" style="color:var(--red)">—</div><div class="kpi-sub">needs action</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--text3)"></div><div class="kpi-lbl">Total Fleet</div><div class="kpi-num" id="k5">—</div><div class="kpi-sub">all vehicles</div></div>
+    </div>
+    <div class="chart-row">
+      <div class="panel"><div class="panel-hd">Fleet Status Breakdown</div><div class="sb-list" id="statusBars"></div></div>
+      <div class="panel"><div class="panel-hd">Workshop Categories</div><div class="stack" id="wsCatStack"></div></div>
+      <div class="panel"><div class="panel-hd">By Supplier</div><div class="stack" id="supStack"></div></div>
+    </div>
+    <div class="tc">
+      <div class="tc-head">
+        <div class="tc-title">Currently In Inspection</div>
+        <div class="tc-tools">
+          <span id="syncTime" class="dim" style="font-family:var(--mono);font-size:10px"></span>
+          <button class="btn sm pri" onclick="go('inspection')">View All →</button>
+        </div>
+      </div>
+      <div class="tscroll"><table><thead><tr>
+        <th>Plate</th><th>Supplier</th><th>Make / Model</th><th>Yr</th><th>Days In Inspection</th><th>Workshop Cat.</th><th>Issue Notes</th><th>Alert</th>
+      </tr></thead><tbody id="dashInspTbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ── INSPECTION ── -->
+  <div class="page" id="inspection">
+    <div class="fbar">
+      <input type="text" placeholder="🔍 Plate, make, model…" id="f-insp-q" oninput="renderInsp()">
+      <select id="f-insp-sup" onchange="renderInsp()"><option value="">All Suppliers</option></select>
+      <select id="f-insp-cat" onchange="renderInsp()">
+        <option value="">All Workshop Categories</option>
+        <option>In-House</option><option>Cars24</option><option>Cusier Express</option><option>Supplier</option><option>Unassigned</option>
+      </select>
+      <button class="btn" onclick="exportInsp()">⬇ Export CSV</button>
+    </div>
+    <div class="tc">
+      <div class="tc-head">
+        <div class="tc-title">All Vehicles In Inspection</div>
+        <span class="dim" id="inspCountLbl" style="font-family:var(--mono);font-size:10px"></span>
+      </div>
+      <div class="tscroll"><table><thead><tr>
+        <th>Plate</th><th>Supplier</th><th>Make / Model</th><th>Yr</th><th>Type</th><th>Days In Inspection</th><th>Workshop Cat.</th><th>Issue Notes</th><th>Alert</th>
+      </tr></thead><tbody id="inspTbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ── WORKSHOP ── -->
+  <div class="page" id="workshop">
+    <div class="fbar">
+      <input type="text" placeholder="🔍 Search plate…" id="f-ws-q" oninput="renderWs()">
+      <select id="f-ws-garage" onchange="renderWs()">
+        <option value="">All Garages</option>
+        <option>In-House</option><option>Cars24</option><option>Cusier Express</option><option>Supplier</option><option>Unassigned</option>
+      </select>
+      <button class="btn pri" onclick="openModal('wsModal')">+ Log Workshop Entry</button>
+    </div>
+    <div class="tc">
+      <div class="tc-head">
+        <div class="tc-title">Vehicles In Workshop / Maintenance</div>
+        <span class="dim" style="font-size:11px">Assign garage using the dropdown per vehicle</span>
+      </div>
+      <div class="tscroll"><table><thead><tr>
+        <th>Plate</th><th>Supplier</th><th>Make / Model</th><th>Garage / Category</th><th>Issue Detail</th><th>Sent Date</th><th>Expected Return</th><th>Days Elapsed</th><th>Alert</th>
+      </tr></thead><tbody id="wsTbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ── PRIORITIES ── -->
+  <div class="page" id="priorities">
+    <div id="priAlertZone"></div>
+    <div class="pri-row">
+      <div class="pri-card crit">
+        <div class="pri-hd crit">
+          <span class="pri-label" style="color:var(--red)">🔴 Critical — Over 7 Days</span>
+          <span class="pri-n" id="critN" style="color:var(--red)">0</span>
+        </div>
+        <div class="tscroll"><table><thead><tr><th>Plate</th><th>Location</th><th>Days</th><th>Issue</th></tr></thead>
+        <tbody id="critTbody"></tbody></table></div>
+      </div>
+      <div class="pri-card warn-c">
+        <div class="pri-hd warn-c">
+          <span class="pri-label" style="color:var(--yellow)">🟡 Collect Soon — 4–7 Days</span>
+          <span class="pri-n" id="warnN" style="color:var(--yellow)">0</span>
+        </div>
+        <div class="tscroll"><table><thead><tr><th>Plate</th><th>Location</th><th>Days</th><th>Issue</th></tr></thead>
+        <tbody id="warnTbody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="tc">
+      <div class="tc-head"><div class="tc-title">All Pending Cases — Highest Days First</div></div>
+      <div class="tscroll"><table><thead><tr>
+        <th>Plate</th><th>Make / Model</th><th>Location</th><th>Days</th><th>Issue</th><th>Flag</th>
+      </tr></thead><tbody id="priAllTbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ── ALL FLEET ── -->
+  <div class="page" id="fleet">
+    <div class="fbar">
+      <input type="text" placeholder="🔍 Plate, make, model, supplier…" id="f-fleet-q" oninput="renderFleet()">
+      <select id="f-fleet-status" onchange="renderFleet()">
+        <option value="">All Statuses</option>
+        <option>INSPECTION</option><option>MAINTENANCE</option><option>AVAILABLE</option><option>ON_ROAD</option><option>UN_AVAILABLE</option>
+      </select>
+      <select id="f-fleet-sup" onchange="renderFleet()"><option value="">All Suppliers</option></select>
+    </div>
+    <div class="tc">
+      <div class="tc-head">
+        <div class="tc-title">Complete Fleet — Live from Redash</div>
+        <span class="dim" id="fleetCountLbl" style="font-family:var(--mono);font-size:10px"></span>
+      </div>
+      <div class="tscroll"><table><thead><tr>
+        <th>ID</th><th>Plate</th><th>Supplier</th><th>Make / Model</th><th>Year</th><th>Type</th><th>Status</th><th>Original Plate</th>
+      </tr></thead><tbody id="fleetTbody"></tbody></table></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════ -->
+
+<!-- Workshop Modal -->
+<div class="overlay" id="wsModal">
+  <div class="modal">
+    <h3>🔧 Log Workshop Entry</h3>
+    <div class="modal-sub">Assign a garage and log the issue for a vehicle in MAINTENANCE status. This is shared with your whole team instantly.</div>
+    <div class="fg2">
+      <div class="fg"><label>Plate Number</label>
+        <input type="text" id="w-plate" placeholder="e.g. DXB-DD-57051">
+      </div>
+      <div class="fg"><label>Garage / Category</label>
+        <select id="w-garage">
+          <option value="">Select…</option>
+          <option>In-House</option><option>Cars24</option><option>Cusier Express</option><option>Supplier</option>
+        </select>
+      </div>
+      <div class="fg"><label>Date Sent to Workshop</label><input type="date" id="w-sent"></div>
+      <div class="fg"><label>Expected Return Date</label><input type="date" id="w-expect"></div>
+    </div>
+    <div class="fg"><label>Issue Description (exact problem)</label>
+      <textarea id="w-issue" placeholder="Describe the exact issue — e.g. brake pads worn, AC compressor leak, front collision damage…"></textarea>
+    </div>
+    <div class="fg"><label>Case / Reference Number (optional)</label>
+      <input type="text" id="w-case" placeholder="e.g. CASE-001 / WO-2025-045">
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeModal('wsModal')">Cancel</button>
+      <button class="btn pri" onclick="saveWsEntry()">Save & Share with Team →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="overlay" id="settingsModal">
+  <div class="modal">
+    <h3>⚙ Settings</h3>
+    <div class="modal-sub">Update your Claude API key or clear all workshop log data.</div>
+    <div class="fg"><label>Claude API Key</label>
+      <input type="password" id="s-apikey" placeholder="sk-ant-api03-…">
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:-6px;margin-bottom:12px">
+      Workshop assignments and notes are shared across your team via Claude's shared storage.
+    </div>
+    <div class="mfoot">
+      <button class="btn danger" onclick="clearAllData()">Clear All Workshop Data</button>
+      <button class="btn" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn pri" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const REDASH_BASE = 'https://redash.joinswapp.com';
+const QUERIES = {
+  fleet:    { id: 320, key: 'WSFam4JDldywtuEYNbiwKPNEWoj0dfuA81oM3X3u' },
+  checkin:  { id: 328, key: 'i6mTtGOS4g5BJwu7vQDa0rmOYhP2sBGtucyqmOny' },
+  checkout: { id: 329, key: 'ZyNH36ts3mCrsJ1LcoUVzwa3IpQcSi26XPkUCPmP' },
+};
+
+// Redash date range — covers all historical data
+const DATE_FROM = '2024-01-01';
+const DATE_TO   = () => new Date().toISOString().split('T')[0];
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+let CLAUDE_KEY = '';
+let fleetData  = [];   // from Redash query 320
+let wsLog      = {};   // { plate: { garage, issue, sent, expect, case, updatedBy, updatedAt } }
+let lastSync   = null;
+let isSyncing  = false;
+
+// ═══════════════════════════════════════════════════════════════════
+//  SETUP / API KEY
+// ═══════════════════════════════════════════════════════════════════
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-ant')) {
+    document.getElementById('setupErr').style.display = 'block';
+    return;
+  }
+  CLAUDE_KEY = key;
+  localStorage.setItem('swapp_claude_key', key);
+  launchApp();
+}
+
+function launchApp() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainNav').style.display     = 'flex';
+  document.getElementById('mainContent').style.display = 'block';
+  startClock();
+  // Show loading state in all tables while fetching
+  document.querySelectorAll('tbody').forEach(el => {
+    el.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--text3)"><span class="spinner"></span>Loading live data from Redash…</td></tr>`;
+  });
+  loadWsLogFromStorage();
+  syncAll();
+  setInterval(syncAll, 5 * 60 * 1000); // auto-refresh every 5 min
+}
+
+// Check if key already stored
+(function init() {
+  const stored = localStorage.getItem('swapp_claude_key');
+  if (stored && stored.startsWith('sk-ant')) {
+    CLAUDE_KEY = stored;
+    document.getElementById('apiKeyInput').value = stored;
+    launchApp();
+  }
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+//  FETCH REDASH VIA CLAUDE API (solves CORS)
+// ═══════════════════════════════════════════════════════════════════
+async function fetchViaClaudeAPI(query, params = {}) {
+  const today = DATE_TO();
+  let url = `${REDASH_BASE}/api/queries/${query.id}/results.csv?api_key=${query.key}`;
+  // Append date params if needed
+  if (params.start_date) url += `&p_start_date=${params.start_date}`;
+  if (params.end_date)   url += `&p_end_date=${params.end_date}`;
+
+  const prompt = `Fetch the content of this URL and return ONLY the raw CSV text, nothing else, no explanation:
+${url}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 8000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Claude API ${res.status}`);
+    const data = await res.json();
+    // Extract text from response
+    const text = data.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    if (!text || text.length < 10) throw new Error('Empty response from Claude');
+    return parseCSV(text.trim());
+  } catch (e) {
+    console.warn('Claude API fetch failed:', e.message);
+    return null;
+  }
+}
+
+// Direct fetch (works if CORS is open, or when running from same domain)
+async function fetchDirect(query, params = {}) {
+  let url = `${REDASH_BASE}/api/queries/${query.id}/results.csv?api_key=${query.key}`;
+  if (params.start_date) url += `&p_start_date=${params.start_date}`;
+  if (params.end_date)   url += `&p_end_date=${params.end_date}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return parseCSV(await res.text());
+  } catch (e) {
+    return null; // Fall back to Claude API
+  }
+}
+
+async function fetchRedash(query, params = {}) {
+  // Try direct first (fast, no cost), fall back to Claude API
+  const direct = await fetchDirect(query, params);
+  if (direct && direct.length > 0) return direct;
+  return fetchViaClaudeAPI(query, params);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CSV PARSER
+// ═══════════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  // Find first line that looks like a CSV header
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+  // Find header line (skip any preamble)
+  let hi = 0;
+  for (let i = 0; i < Math.min(lines.length, 5); i++) {
+    if (lines[i].includes(',')) { hi = i; break; }
+  }
+  const headers = splitCSVLine(lines[hi]).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase().replace(/ /g,'_'));
+  const rows = [];
+  for (let i = hi + 1; i < lines.length; i++) {
+    const vals = splitCSVLine(lines[i]);
+    if (vals.length < 2) continue;
+    const obj = {};
+    headers.forEach((h, j) => { obj[h] = (vals[j] || '').replace(/^"|"$/g, '').trim(); });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function splitCSVLine(line) {
+  const result = []; let cur = '', inQ = false;
+  for (const c of line) {
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SHARED WORKSHOP LOG (via Claude Artifacts persistent storage)
+// ═══════════════════════════════════════════════════════════════════
+async function loadWsLogFromStorage() {
+  // Try shared storage (Claude Artifacts environment)
+  if (window.storage) {
+    try {
+      const res = await window.storage.get('swapp_ws_log', true); // shared=true
+      if (res) { wsLog = JSON.parse(res.value); renderAll(); }
+    } catch(e) { /* key not found yet */ }
+  }
+  // Also load local fallback
+  try {
+    const local = localStorage.getItem('swapp_ws_log');
+    if (local) { const parsed = JSON.parse(local); wsLog = { ...parsed, ...wsLog }; }
+  } catch(e) {}
+}
+
+async function saveWsLog() {
+  const json = JSON.stringify(wsLog);
+  localStorage.setItem('swapp_ws_log', json);
+  // Also save to shared storage if available (team sync)
+  if (window.storage) {
+    try { await window.storage.set('swapp_ws_log', json, true); } catch(e) {}
+  }
+}
+
+function getWs(plate) {
+  return wsLog[plate?.trim()] || null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SYNC
+// ═══════════════════════════════════════════════════════════════════
+async function syncAll() {
+  if (isSyncing) return;
+  isSyncing = true;
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('spinning');
+  toast('Syncing live data from Redash…', 'info');
+
+  // Direct fetch — Redash allows browser access (no CORS restriction)
+  const directURL = `${REDASH_BASE}/api/queries/${QUERIES.fleet.id}/results.csv?api_key=${QUERIES.fleet.key}`;
+  let result = null;
+
+  try {
+    const res = await fetch(directURL);
+    if (res.ok) {
+      const text = await res.text();
+      result = parseCSV(text);
+    }
+  } catch(e) {
+    console.warn('Direct fetch failed, trying Claude API proxy…', e.message);
+  }
+
+  // Fallback: try via Claude API proxy if direct fails
+  if (!result || result.length < 10) {
+    result = await fetchViaClaudeAPI(QUERIES.fleet, {});
+  }
+
+  if (result && result.length > 10) {
+    fleetData = result;
+    lastSync  = new Date();
+    document.getElementById('syncTime').textContent =
+      `Synced ${lastSync.toLocaleTimeString('en-GB')} · ${fleetData.length} vehicles`;
+    toast(`✓ ${fleetData.length} vehicles loaded from Redash`, 'ok');
+  } else {
+    // Last resort: embedded fallback (partial data — shows warning)
+    if (fleetData.length === 0) loadFallback();
+    toast('⚠ Live sync failed — showing cached data. Check network.', 'err');
+    document.getElementById('syncTime').textContent = '⚠ Cached data — sync failed';
+  }
+
+  // Reload shared workshop log
+  await loadWsLogFromStorage();
+
+  isSyncing = false;
+  btn.classList.remove('spinning');
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FALLBACK DATA (your real Redash data, pre-loaded)
+// ═══════════════════════════════════════════════════════════════════
+function loadFallback() {
+  fleetData = [
+    {name:'Swapp - Avis',id:'354',number_plate:'AUH-20-97013',make:'Nissan',model:'Sunny',year:'2024',car_type:'NEW',status:'INSPECTION',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'352',number_plate:'DXB-DD-57051',make:'Mitsubishi',model:'Attrage',year:'2025',car_type:'NEW',status:'MAINTENANCE',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'1177',number_plate:'DXB-P-86422',make:'Geely',model:'Emgrand',year:'2025',car_type:'NEW',status:'MAINTENANCE',originalcarplate:''},
+    {name:'Swapp - Legend',id:'1275',number_plate:'AUH-22-62790',make:'Geely',model:'GX3 Pro',year:'2026',car_type:'NEW',status:'MAINTENANCE',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'1894',number_plate:'DXB-H-70438',make:'Mazda',model:'CX-3',year:'2026',car_type:'NEW',status:'AVAILABLE',originalcarplate:''},
+    {name:'Swapp - Legend',id:'1495',number_plate:'AUH-22-58615',make:'Kaiyi',model:'X3 Pro',year:'2026',car_type:'NEW',status:'AVAILABLE',originalcarplate:''},
+    {name:'Swapp - Avis',id:'339',number_plate:'AUH-20-87530',make:'Nissan',model:'Sunny',year:'2024',car_type:'NEW',status:'AVAILABLE',originalcarplate:''},
+    {name:'Swapp - Paramount',id:'330',number_plate:'DXB-L-46388',make:'Kia',model:'Pegas',year:'2023',car_type:'NEW',status:'UN_AVAILABLE',originalcarplate:''},
+    {name:'Swapp - Legend',id:'1223',number_plate:'AUH-21-71750',make:'Kaiyi',model:'X3 Pro',year:'2026',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Avis',id:'1253',number_plate:'AUH-10-36920',make:'Nissan',model:'Sunny',year:'2024',car_type:'REPLACEMENT',status:'ON_ROAD',originalcarplate:'AUH-20-93884'},
+    {name:'Swapp - Diamondlease',id:'360',number_plate:'DXB-Y-65292',make:'Mitsubishi',model:'Attrage',year:'2022',car_type:'NEW',status:'UN_AVAILABLE',originalcarplate:''},
+    {name:'Swapp - Ok Mobility',id:'334',number_plate:'DXB-CC-51282',make:'Kia',model:'Pegas',year:'2024',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Avis',id:'356',number_plate:'AUH-14-20281',make:'Nissan',model:'Sunny',year:'2024',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'1864',number_plate:'DXB-Z-53152',make:'JAC',model:'J7',year:'2025',car_type:'REPLACEMENT',status:'ON_ROAD',originalcarplate:'DXB-CC-58917'},
+    {name:'Swapp - Ok Mobility',id:'935',number_plate:'DXB-CC-51299',make:'Kia',model:'Pegas',year:'2024',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'1865',number_plate:'DXB-FF-86083',make:'Mazda',model:'CX-3',year:'2026',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Morning Star',id:'660',number_plate:'DXB-BB-26851',make:'Exeed',model:'LX',year:'2025',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Hertz',id:'1459',number_plate:'DXB-O-88603',make:'Toyota',model:'Yaris',year:'2026',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Shift',id:'1664',number_plate:'DXB-FF-45030',make:'Nissan',model:'X-Trail',year:'2025',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'382',number_plate:'DXB-BB-77296',make:'Suzuki',model:'Ciaz',year:'2024',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'1205',number_plate:'AUH-15-29874',make:'Suzuki',model:'Ciaz',year:'2023',car_type:'REPLACEMENT',status:'UN_AVAILABLE',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'1168',number_plate:'DXB-E-84418',make:'Suzuki',model:'Ciaz',year:'2023',car_type:'REPLACEMENT',status:'UN_AVAILABLE',originalcarplate:'DXB-Z-25989'},
+    {name:'Swapp - Hertz',id:'1512',number_plate:'DXB-FF-18974',make:'Jeep',model:'Grand Cherokee',year:'2025',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Shift',id:'1676',number_plate:'DXB-FF-46323',make:'Nissan',model:'X Trail',year:'2025',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Diamondlease',id:'347',number_plate:'DXB-DD-55381',make:'Mitsubishi',model:'Attrage',year:'2025',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Avis',id:'1245',number_plate:'AUH-8-57095',make:'Nissan',model:'Sunny',year:'2024',car_type:'REPLACEMENT',status:'ON_ROAD',originalcarplate:'AUH-15-46883'},
+    {name:'Swapp - Diamondlease',id:'551',number_plate:'DXB-BB-77294',make:'Suzuki',model:'Ciaz',year:'2024',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+    {name:'Swapp - Morning Star',id:'390',number_plate:'DXB-W-70369',make:'Exeed',model:'LX',year:'2024',car_type:'NEW',status:'ON_ROAD',originalcarplate:''},
+  ];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function daysElapsed(dateStr) {
+  if (!dateStr) return 0;
+  const d = new Date(dateStr);
+  return isNaN(d) ? 0 : Math.max(0, Math.floor((Date.now() - d) / 86400000));
+}
+
+function dayChip(d) {
+  if (d === 0) return `<span class="dc dc-ok">today</span>`;
+  if (d <= 2)  return `<span class="dc dc-ok">${d}d</span>`;
+  if (d <= 4)  return `<span class="dc dc-warn">${d}d</span>`;
+  if (d <= 7)  return `<span class="dc dc-bad">${d}d ⚠</span>`;
+  return `<span class="dc dc-crit">${d}d 🔴</span>`;
+}
+
+function priFlag(d) {
+  if (d > 7)  return `<span class="pf pf-crit">🔴 CRITICAL</span>`;
+  if (d >= 4) return `<span class="pf pf-collect">🟡 COLLECT</span>`;
+  return '';
+}
+
+function statusBadge(s) {
+  const m = {INSPECTION:'b-insp',MAINTENANCE:'b-maint',AVAILABLE:'b-avail',ON_ROAD:'b-road',UN_AVAILABLE:'b-unavail'};
+  return `<span class="b ${m[s]||'b-unavail'}">${s}</span>`;
+}
+
+function garageBadge(g) {
+  if (!g) return `<span class="b b-unset">— Assign</span>`;
+  const m = {'In-House':'b-inhouse','Cars24':'b-cars24','Cusier Express':'b-cusier','Supplier':'b-supplier'};
+  return `<span class="b ${m[g]||'b-inhouse'}">${g}</span>`;
+}
+
+function supName(n) { return (n||'').replace('Swapp - ',''); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════════════════════════════════
+function renderAll() {
+  renderKPIs();
+  renderCharts();
+  renderDashInsp();
+  renderInsp();
+  renderWs();
+  renderPriorities();
+  renderFleet();
+  populateFilters();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  KPIs
+// ═══════════════════════════════════════════════════════════════════
+function renderKPIs() {
+  const c = {};
+  fleetData.forEach(r => { c[r.status] = (c[r.status]||0)+1; });
+
+  const maintRows = fleetData.filter(r=>r.status==='MAINTENANCE');
+  const overdue   = maintRows.filter(r => {
+    const ws = getWs(r.number_plate);
+    return ws && daysElapsed(ws.sent) > 5;
+  });
+  const inspRows  = fleetData.filter(r=>r.status==='INSPECTION');
+  const critCount = [...maintRows,...inspRows].filter(r=>{
+    const ws=getWs(r.number_plate); return ws && daysElapsed(ws.sent)>7;
+  }).length + overdue.length;
+
+  document.getElementById('k0').textContent = c['INSPECTION']  || 0;
+  document.getElementById('k1').textContent = c['MAINTENANCE'] || 0;
+  document.getElementById('k2').textContent = c['AVAILABLE']   || 0;
+  document.getElementById('k3').textContent = c['ON_ROAD']     || 0;
+  document.getElementById('k4').textContent = overdue.length;
+  document.getElementById('k5').textContent = fleetData.length;
+
+  document.getElementById('tab-insp-count').textContent = c['INSPECTION']||'—';
+  document.getElementById('tab-pri-count').textContent  = critCount||'—';
+
+  const az = document.getElementById('alertZone');
+  if (overdue.length > 0) {
+    az.innerHTML = `<div class="alert-bar"><span style="font-size:18px">🚨</span><div class="alert-bar-body"><strong>${overdue.length} vehicle${overdue.length>1?'s':''}</strong> have been in workshop over 5 days — collection or escalation needed immediately. Check the <strong>Priorities</strong> tab.</div><div class="alert-num">${overdue.length}</div></div>`;
+  } else if (c['INSPECTION'] > 0) {
+    az.innerHTML = `<div class="alert-bar warn"><span style="font-size:18px">ℹ</span><div class="alert-bar-body"><strong>${c['INSPECTION']} vehicle${c['INSPECTION']>1?'s':''}</strong> currently in inspection. No overdue cases.</div></div>`;
+  } else {
+    az.innerHTML = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════════════════════
+function renderCharts() {
+  const c = {};
+  fleetData.forEach(r => { c[r.status]=(c[r.status]||0)+1; });
+  const total = fleetData.length || 1;
+
+  const statuses = [
+    {k:'ON_ROAD',    label:'On Road',      color:'var(--accent)'},
+    {k:'INSPECTION', label:'Inspection',   color:'var(--cyan)'},
+    {k:'MAINTENANCE',label:'Maintenance',  color:'var(--yellow)'},
+    {k:'AVAILABLE',  label:'Available',    color:'var(--green)'},
+    {k:'UN_AVAILABLE',label:'Unavailable', color:'var(--text3)'},
+  ];
+  document.getElementById('statusBars').innerHTML = statuses.map(s => {
+    const n = c[s.k]||0, pct = Math.round(n/total*100);
+    return `<div class="sb-item">
+      <div class="sb-top"><span class="sb-name">${s.label}</span><span class="sb-val">${n} · ${pct}%</span></div>
+      <div class="sb-bg"><div class="sb-fill" style="width:${pct}%;background:${s.color}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Workshop cats
+  const cats = {};
+  Object.values(wsLog).forEach(e => { if(e.garage) cats[e.garage]=(cats[e.garage]||0)+1; });
+  const maintTotal = c['MAINTENANCE']||0;
+  const assigned   = Object.values(cats).reduce((a,b)=>a+b,0);
+  const unassigned = Math.max(0, maintTotal - assigned);
+  const garageColors = {'In-House':'var(--cyan)','Cars24':'var(--orange)','Cusier Express':'var(--purple)','Supplier':'var(--red)'};
+  let wsHtml = Object.entries(cats).map(([k,v])=>
+    `<div class="stack-item"><div class="stack-l"><div class="stack-dot" style="background:${garageColors[k]||'var(--text3)'}"></div>${k}</div><div class="stack-n" style="color:${garageColors[k]||'var(--text3)'}">${v}</div></div>`
+  ).join('');
+  if (unassigned>0) wsHtml += `<div class="stack-item"><div class="stack-l"><div class="stack-dot" style="background:var(--text3)"></div><span class="dim">Unassigned</span></div><div class="stack-n" style="color:var(--text3)">${unassigned}</div></div>`;
+  if (!maintTotal)  wsHtml = `<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">No vehicles in maintenance</div>`;
+  document.getElementById('wsCatStack').innerHTML = wsHtml;
+
+  // Suppliers
+  const sups = {};
+  fleetData.forEach(r => { const s=supName(r.name)||'Unknown'; sups[s]=(sups[s]||0)+1; });
+  const supColors = ['var(--accent)','var(--cyan)','var(--green)','var(--yellow)','var(--orange)','var(--purple)','var(--red)'];
+  document.getElementById('supStack').innerHTML = Object.entries(sups).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v],i)=>
+    `<div class="stack-item"><div class="stack-l"><div class="stack-dot" style="background:${supColors[i%supColors.length]}"></div><span style="font-size:11px">${k}</span></div><div class="stack-n" style="color:${supColors[i%supColors.length]};font-size:16px">${v}</div></div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DASHBOARD INSPECTION TABLE
+// ═══════════════════════════════════════════════════════════════════
+function renderDashInsp() {
+  const rows = fleetData.filter(r=>r.status==='INSPECTION').slice(0,12);
+  const tbody = document.getElementById('dashInspTbody');
+  if (!rows.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No vehicles currently in inspection</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r => {
+    const ws   = getWs(r.number_plate);
+    const days = ws ? daysElapsed(ws.sent) : 0;
+    return `<tr>
+      <td><span class="plate">${r.number_plate?.trim()}</span></td>
+      <td><span class="dim">${supName(r.name)}</span></td>
+      <td>${r.make} ${r.model}</td>
+      <td class="dim">${r.year}</td>
+      <td>${dayChip(days)}</td>
+      <td onclick="openAssignFor('${r.number_plate?.trim()}')" style="cursor:pointer">${garageBadge(ws?.garage)}</td>
+      <td class="dim" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ws?.issue||'—'}</td>
+      <td>${priFlag(days)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INSPECTION PAGE
+// ═══════════════════════════════════════════════════════════════════
+function renderInsp() {
+  const q    = (document.getElementById('f-insp-q')?.value||'').toLowerCase();
+  const sup  = document.getElementById('f-insp-sup')?.value||'';
+  const cat  = document.getElementById('f-insp-cat')?.value||'';
+
+  let rows = fleetData.filter(r=>r.status==='INSPECTION');
+  if (q)   rows = rows.filter(r=>`${r.number_plate} ${r.make} ${r.model} ${r.name}`.toLowerCase().includes(q));
+  if (sup) rows = rows.filter(r=>r.name===sup);
+  if (cat) {
+    if (cat==='Unassigned') rows = rows.filter(r=>!getWs(r.number_plate)?.garage);
+    else rows = rows.filter(r=>getWs(r.number_plate)?.garage===cat);
+  }
+
+  document.getElementById('inspCountLbl').textContent = `${rows.length} vehicle${rows.length!==1?'s':''}`;
+  const tbody = document.getElementById('inspTbody');
+  if (!rows.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No vehicles match</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r => {
+    const ws   = getWs(r.number_plate);
+    const days = ws ? daysElapsed(ws.sent) : 0;
+    return `<tr>
+      <td><span class="plate">${r.number_plate?.trim()}</span></td>
+      <td class="dim">${supName(r.name)}</td>
+      <td>${r.make} ${r.model}</td>
+      <td class="dim">${r.year}</td>
+      <td class="dim">${r.car_type}</td>
+      <td>${dayChip(days)}</td>
+      <td onclick="openAssignFor('${r.number_plate?.trim()}')" style="cursor:pointer">${garageBadge(ws?.garage)}</td>
+      <td class="dim" style="max-width:200px">${ws?.issue||'—'}</td>
+      <td>${priFlag(days)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  WORKSHOP PAGE
+// ═══════════════════════════════════════════════════════════════════
+function renderWs() {
+  const q   = (document.getElementById('f-ws-q')?.value||'').toLowerCase();
+  const gar = document.getElementById('f-ws-garage')?.value||'';
+
+  let rows = fleetData.filter(r=>r.status==='MAINTENANCE');
+  if (q) rows = rows.filter(r=>`${r.number_plate} ${r.make} ${r.model}`.toLowerCase().includes(q));
+  if (gar) {
+    if (gar==='Unassigned') rows = rows.filter(r=>!getWs(r.number_plate)?.garage);
+    else rows = rows.filter(r=>getWs(r.number_plate)?.garage===gar);
+  }
+
+  const tbody = document.getElementById('wsTbody');
+  if (!rows.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No vehicles match</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r => {
+    const ws   = getWs(r.number_plate);
+    const days = ws ? daysElapsed(ws.sent) : 0;
+    const plate = r.number_plate?.trim();
+    return `<tr>
+      <td><span class="plate">${plate}</span></td>
+      <td class="dim">${supName(r.name)}</td>
+      <td>${r.make} ${r.model}</td>
+      <td>
+        <div class="assign-wrap">
+          ${garageBadge(ws?.garage)}
+          <select class="mini-sel" onchange="quickAssign('${plate}',this.value);this.value=''">
+            <option value="">Change…</option>
+            <option>In-House</option><option>Cars24</option><option>Cusier Express</option><option>Supplier</option>
+          </select>
+        </div>
+      </td>
+      <td class="dim" style="max-width:160px">${ws?.issue||`<span style="font-style:italic">Not logged — <button class="btn sm" onclick="openAssignFor('${plate}')">Add</button></span>`}</td>
+      <td class="dim" style="font-family:var(--mono);font-size:11px">${ws?.sent||'—'}</td>
+      <td class="dim" style="font-family:var(--mono);font-size:11px">${ws?.expect||'—'}</td>
+      <td>${dayChip(days)}</td>
+      <td>${priFlag(days)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PRIORITIES PAGE
+// ═══════════════════════════════════════════════════════════════════
+function renderPriorities() {
+  const active = fleetData.filter(r=>r.status==='MAINTENANCE'||r.status==='INSPECTION');
+  const mapped = active.map(r => {
+    const ws  = getWs(r.number_plate);
+    const days = ws ? daysElapsed(ws.sent) : 0;
+    return { plate:r.number_plate?.trim(), mm:`${r.make} ${r.model}`, loc:ws?.garage||(r.status==='INSPECTION'?'Inspection Yard':'Unassigned'), days, issue:ws?.issue||'Not logged' };
+  }).sort((a,b)=>b.days-a.days);
+
+  const crit = mapped.filter(r=>r.days>7);
+  const warn = mapped.filter(r=>r.days>=4&&r.days<=7);
+
+  document.getElementById('critN').textContent = crit.length;
+  document.getElementById('warnN').textContent = warn.length;
+
+  const priAZ = document.getElementById('priAlertZone');
+  if (crit.length) {
+    priAZ.innerHTML = `<div class="alert-bar"><span style="font-size:18px">🔴</span><div class="alert-bar-body"><strong>${crit.length} vehicle${crit.length>1?'s':''} CRITICAL</strong> — over 7 days in workshop. Contact garage immediately for status or arrange emergency collection.</div><div class="alert-num">${crit.length}</div></div>`;
+  } else priAZ.innerHTML = '';
+
+  const mkR = (arr) => arr.length
+    ? arr.map(r=>`<tr><td class="plate">${r.plate}</td><td class="dim">${r.loc}</td><td>${dayChip(r.days)}</td><td class="dim" style="font-size:11px;max-width:160px">${r.issue}</td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="4">None</td></tr>`;
+
+  document.getElementById('critTbody').innerHTML = mkR(crit);
+  document.getElementById('warnTbody').innerHTML = mkR(warn);
+  document.getElementById('priAllTbody').innerHTML = mapped.length
+    ? mapped.map(r=>`<tr>
+        <td class="plate">${r.plate}</td><td>${r.mm}</td>
+        <td class="dim">${r.loc}</td><td>${dayChip(r.days)}</td>
+        <td class="dim" style="font-size:11px">${r.issue}</td><td>${priFlag(r.days)}</td>
+      </tr>`).join('')
+    : `<tr class="empty-row"><td colspan="6">No pending cases</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FLEET PAGE
+// ═══════════════════════════════════════════════════════════════════
+function renderFleet() {
+  const q   = (document.getElementById('f-fleet-q')?.value||'').toLowerCase();
+  const st  = document.getElementById('f-fleet-status')?.value||'';
+  const sup = document.getElementById('f-fleet-sup')?.value||'';
+
+  let rows = fleetData;
+  if (q)  rows = rows.filter(r=>`${r.number_plate} ${r.make} ${r.model} ${r.name}`.toLowerCase().includes(q));
+  if (st) rows = rows.filter(r=>r.status===st);
+  if (sup)rows = rows.filter(r=>r.name===sup);
+
+  document.getElementById('fleetCountLbl').textContent = `${rows.length} of ${fleetData.length}`;
+  const tbody = document.getElementById('fleetTbody');
+  if (!rows.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No matches</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r=>`<tr>
+    <td class="dim">${r.id}</td>
+    <td><span class="plate">${r.number_plate?.trim()}</span></td>
+    <td class="dim">${supName(r.name)}</td>
+    <td>${r.make} ${r.model}</td>
+    <td class="dim">${r.year}</td>
+    <td class="dim">${r.car_type}</td>
+    <td>${statusBadge(r.status)}</td>
+    <td class="dim" style="font-size:11px">${r.originalcarplate||'—'}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  POPULATE FILTER DROPDOWNS
+// ═══════════════════════════════════════════════════════════════════
+function populateFilters() {
+  const sups = [...new Set(fleetData.map(r=>r.name).filter(Boolean))].sort();
+  ['f-insp-sup','f-fleet-sup'].forEach(id => {
+    const el = document.getElementById(id); if(!el) return;
+    const prev = el.value;
+    el.innerHTML = `<option value="">All Suppliers</option>` + sups.map(s=>`<option value="${s}">${supName(s)}</option>`).join('');
+    el.value = prev;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  QUICK ASSIGN (inline dropdown in workshop table)
+// ═══════════════════════════════════════════════════════════════════
+async function quickAssign(plate, garage) {
+  if (!garage) return;
+  wsLog[plate] = { ...(wsLog[plate]||{}), garage, updatedAt: new Date().toISOString() };
+  await saveWsLog();
+  toast(`✓ ${plate} → ${garage}`, 'ok');
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  OPEN ASSIGN MODAL (pre-fill for existing plate)
+// ═══════════════════════════════════════════════════════════════════
+function openAssignFor(plate) {
+  const ws = getWs(plate);
+  document.getElementById('w-plate').value  = plate;
+  document.getElementById('w-garage').value = ws?.garage||'';
+  document.getElementById('w-sent').value   = ws?.sent||new Date().toISOString().split('T')[0];
+  document.getElementById('w-expect').value = ws?.expect||'';
+  document.getElementById('w-issue').value  = ws?.issue||'';
+  document.getElementById('w-case').value   = ws?.case||'';
+  openModal('wsModal');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SAVE WORKSHOP ENTRY
+// ═══════════════════════════════════════════════════════════════════
+async function saveWsEntry() {
+  const plate  = document.getElementById('w-plate').value.trim();
+  const garage = document.getElementById('w-garage').value;
+  const sent   = document.getElementById('w-sent').value;
+  const expect = document.getElementById('w-expect').value;
+  const issue  = document.getElementById('w-issue').value.trim();
+  const caseNo = document.getElementById('w-case').value.trim();
+
+  if (!plate)  { toast('Enter a plate number', 'err'); return; }
+  if (!garage) { toast('Select a garage/category', 'err'); return; }
+  if (!issue)  { toast('Enter the issue description', 'err'); return; }
+
+  wsLog[plate] = { garage, sent, expect, issue, case: caseNo, updatedAt: new Date().toISOString() };
+  await saveWsLog();
+  closeModal('wsModal');
+  toast(`✓ Entry saved & shared with team`, 'ok');
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════════════════════
+function exportInsp() {
+  const rows = fleetData.filter(r=>r.status==='INSPECTION');
+  const h = ['Plate','Supplier','Make','Model','Year','Type','Workshop Category','Issue','Sent Date','Expected Return','Days In Inspection'];
+  const data = rows.map(r=>{
+    const ws=getWs(r.number_plate); const days=ws?daysElapsed(ws.sent):0;
+    return [r.number_plate?.trim(),supName(r.name),r.make,r.model,r.year,r.car_type,ws?.garage||'Unassigned',`"${ws?.issue||''}"`,ws?.sent||'',ws?.expect||'',days];
+  });
+  const csv=[h,...data].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`swapp_inspection_${DATE_TO()}.csv`;
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════════════════
+function saveSettings() {
+  const key = document.getElementById('s-apikey').value.trim();
+  if (key && key.startsWith('sk-ant')) {
+    CLAUDE_KEY = key;
+    localStorage.setItem('swapp_claude_key', key);
+    toast('✓ API key updated', 'ok');
+  }
+  closeModal('settingsModal');
+}
+
+async function clearAllData() {
+  if (!confirm('Clear all workshop assignments and notes? This cannot be undone.')) return;
+  wsLog = {};
+  await saveWsLog();
+  closeModal('settingsModal');
+  toast('Workshop log cleared', '');
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function go(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  const idx={dash:0,inspection:1,workshop:2,priorities:3,fleet:4};
+  document.querySelectorAll('.ntab')[idx[id]]?.classList.add('on');
+}
+
+function openModal(id) {
+  const today=new Date().toISOString().split('T')[0];
+  document.querySelectorAll('#'+id+' input[type=date]').forEach(d=>{if(!d.value)d.value=today;});
+  document.getElementById(id).classList.add('on');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('on'); }
+document.querySelectorAll('.overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on');}));
+
+let toastTimer;
+function toast(msg, type='') {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`${type?type:''}`;
+  clearTimeout(toastTimer);
+  requestAnimationFrame(()=>{ el.classList.add('show'); });
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+function startClock() {
+  const tick=()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-GB'); };
+  tick(); setInterval(tick,1000);
+}
+
+// Pre-load settings modal key field
+document.getElementById('s-apikey').value = localStorage.getItem('swapp_claude_key')||'';
+</script>
+</body>
+</html>
