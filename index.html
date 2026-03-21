@@ -485,12 +485,11 @@ let toastTimer = null;
 // ═══════════════════════════════════════════════════════════════════
 function saveApiKey() {
   const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key.startsWith('sk-ant')) {
-    document.getElementById('setupErr').style.display = 'block';
-    return;
+  // API key is optional now - we use CORS proxy to fetch Redash
+  if (key && key.startsWith('sk-ant')) {
+    CLAUDE_KEY = key;
+    localStorage.setItem('swapp_claude_key', key);
   }
-  CLAUDE_KEY = key;
-  localStorage.setItem('swapp_claude_key', key);
   launchApp();
 }
 
@@ -513,84 +512,54 @@ function launchApp() {
   const stored = localStorage.getItem('swapp_claude_key');
   if (stored && stored.startsWith('sk-ant')) {
     CLAUDE_KEY = stored;
-    document.getElementById('apiKeyInput').value = stored;
-    launchApp();
+    if (document.getElementById('apiKeyInput')) document.getElementById('apiKeyInput').value = stored;
   }
+  // Auto-launch without requiring API key - CORS proxy handles data fetching
+  launchApp();
 })();
 
 // ═══════════════════════════════════════════════════════════════════
 //  FETCH REDASH VIA CLAUDE API (solves CORS)
 // ═══════════════════════════════════════════════════════════════════
 async function fetchViaClaudeAPI(query, params = {}) {
-  const url = `${REDASH_BASE}/api/queries/${query.id}/results.csv?api_key=${query.key}`;
+  const redashUrl = `${REDASH_BASE}/api/queries/${query.id}/results.csv?api_key=${query.key}`;
 
-  if (!CLAUDE_KEY || !CLAUDE_KEY.startsWith('sk-ant')) {
-    console.warn('No valid Claude API key');
-    return null;
-  }
-
+  // Method 1: Try direct fetch (works if CORS is open)
   try {
-    console.log('Calling Claude API to fetch:', url);
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 16000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: 'You fetch URLs and return their raw content. Return ONLY the raw CSV text, nothing else. No markdown. No explanation.',
-        messages: [{
-          role: 'user',
-          content: `Fetch this URL and return ONLY its raw CSV content. The first line must be the CSV header. No markdown, no explanation, no code blocks: ${url}`
-        }],
-      }),
-    });
-
-    console.log('Claude API response status:', res.status);
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('Claude API HTTP error:', res.status, errText.slice(0, 300));
-      return null;
+    const res = await fetch(redashUrl);
+    if (res.ok) {
+      const text = await res.text();
+      const parsed = parseCSV(text);
+      if (parsed.length > 10) { console.log('Direct fetch OK:', parsed.length); return parsed; }
     }
+  } catch(e) { /* CORS blocked */ }
 
-    const data = await res.json();
-    console.log('Claude API response type:', data.stop_reason, 'blocks:', data.content?.length);
-
-    if (data.error) {
-      console.error('Claude API error:', data.error);
-      return null;
+  // Method 2: CORS proxy (allorigins.win — free, no auth needed)
+  try {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(redashUrl)}`;
+    console.log('Trying CORS proxy...');
+    const res = await fetch(proxyUrl);
+    if (res.ok) {
+      const text = await res.text();
+      const parsed = parseCSV(text);
+      if (parsed.length > 10) { console.log('CORS proxy OK:', parsed.length); return parsed; }
     }
+  } catch(e) { console.warn('CORS proxy failed:', e.message); }
 
-    // Collect all text blocks from the response
-    const allText = (data.content || [])
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('\n');
-
-    console.log('Raw text length:', allText.length, 'preview:', allText.slice(0, 150));
-
-    // Clean up any markdown
-    const clean = allText.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
-
-    if (clean.length > 100 && clean.includes('number_plate')) {
-      const parsed = parseCSV(clean);
-      console.log('Parsed rows:', parsed.length);
-      if (parsed.length > 10) return parsed;
+  // Method 3: corsproxy.io
+  try {
+    const proxyUrl2 = `https://corsproxy.io/?${encodeURIComponent(redashUrl)}`;
+    console.log('Trying corsproxy.io...');
+    const res = await fetch(proxyUrl2);
+    if (res.ok) {
+      const text = await res.text();
+      const parsed = parseCSV(text);
+      if (parsed.length > 10) { console.log('corsproxy.io OK:', parsed.length); return parsed; }
     }
+  } catch(e) { console.warn('corsproxy.io failed:', e.message); }
 
-    console.warn('Response did not contain valid CSV. Length:', clean.length);
-    return null;
-
-  } catch (e) {
-    console.error('fetchViaClaudeAPI error:', e.message);
-    return null;
-  }
+  console.warn('All fetch methods failed — showing fallback data');
+  return null;
 }
 // Direct fetch removed — using Claude API proxy only (CORS blocked)
 
