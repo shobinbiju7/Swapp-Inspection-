@@ -478,6 +478,7 @@ let fleetData  = [];   // from Redash query 320
 let wsLog      = {};   // { plate: { garage, issue, sent, expect, case, updatedBy, updatedAt } }
 let lastSync   = null;
 let isSyncing  = false;
+let toastTimer = null;
 
 // ═══════════════════════════════════════════════════════════════════
 //  SETUP / API KEY
@@ -536,8 +537,8 @@ async function fetchViaClaudeAPI(query, params = {}) {
   } catch(e) { /* CORS blocked, fall through */ }
 
   // Strategy 2: Claude API with web_search tool to fetch the Redash CSV
-  // Claude's servers are not CORS-restricted so they can fetch Redash directly
   try {
+    updateSyncStatus('Calling Claude API to fetch Redash data...');
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -686,34 +687,53 @@ function getWs(plate) {
 // ═══════════════════════════════════════════════════════════════════
 //  SYNC
 // ═══════════════════════════════════════════════════════════════════
+function updateSyncStatus(msg) {
+  const el = document.getElementById('syncTime');
+  if (el) el.textContent = msg;
+}
+
 async function syncAll() {
   if (isSyncing) return;
   isSyncing = true;
   const btn = document.getElementById('syncBtn');
   btn.classList.add('spinning');
-  toast('Connecting to Redash…', 'info');
 
-  // Show fallback data immediately so dashboard is never blank
+  // STEP 1: Show fallback data immediately — never show blank/loading
   if (fleetData.length === 0) { loadFallback(); renderAll(); }
+  updateSyncStatus('Syncing from Redash…');
+  toast('Syncing from Redash…', 'info');
 
-  // 45 second timeout so we never get stuck loading forever
+  // STEP 2: Check API key exists
+  if (!CLAUDE_KEY || !CLAUDE_KEY.startsWith('sk-ant')) {
+    updateSyncStatus('⚠ No API key — open ⚙ Settings to enter your Claude API key');
+    toast('⚠ No Claude API key set — click ⚙ Settings', 'err');
+    isSyncing = false;
+    btn.classList.remove('spinning');
+    renderAll();
+    return;
+  }
+
+  // STEP 3: Try live fetch with 45s timeout
+  updateSyncStatus('Fetching from Redash via Claude API…');
   const _timeout = new Promise(resolve => setTimeout(() => resolve(null), 45000));
-  const result = await Promise.race([fetchViaClaudeAPI(QUERIES.fleet, {}), _timeout]);
+  let result = null;
+  try {
+    result = await Promise.race([fetchViaClaudeAPI(QUERIES.fleet, {}), _timeout]);
+  } catch(e) {
+    console.error('Sync error:', e);
+    updateSyncStatus('⚠ Sync error: ' + e.message);
+  }
 
   if (result && result.length > 10) {
     fleetData = result;
     lastSync  = new Date();
-    document.getElementById('syncTime').textContent =
-      `Live · ${lastSync.toLocaleTimeString('en-GB')} · ${fleetData.length} vehicles`;
-    toast(`✓ ${fleetData.length} vehicles loaded from Redash`, 'ok');
+    updateSyncStatus(`✓ Live · ${lastSync.toLocaleTimeString('en-GB')} · ${fleetData.length} vehicles`);
+    toast(`✓ ${fleetData.length} vehicles loaded`, 'ok');
   } else {
-    // Keep whatever data we have (fallback or previous sync)
-    document.getElementById('syncTime').textContent =
-      fleetData.length > 28
-        ? `Cached · ${fleetData.length} vehicles`
-        : '⚠ Live sync failed — showing sample data';
-    toast('⚠ Could not reach Redash. Showing cached data.', 'err');
-    console.warn('Sync failed. Check: 1) Claude API key valid? 2) Redash URL reachable?');
+    updateSyncStatus(fleetData.length > 28
+      ? `⚠ Cached · ${fleetData.length} vehicles (live sync failed)`
+      : '⚠ Showing sample data — live sync failed');
+    toast('⚠ Live sync failed. Check Console (F12) for details.', 'err');
   }
 
   await loadWsLogFromStorage();
@@ -1175,7 +1195,6 @@ function openModal(id) {
 function closeModal(id) { document.getElementById(id).classList.remove('on'); }
 document.querySelectorAll('.overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on');}));
 
-let toastTimer;
 function toast(msg, type='') {
   const el=document.getElementById('toast');
   el.textContent=msg; el.className=`${type?type:''}`;
