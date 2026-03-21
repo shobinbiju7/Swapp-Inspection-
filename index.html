@@ -658,43 +658,24 @@ async function syncAll() {
   isSyncing = true;
   const btn = document.getElementById('syncBtn');
   btn.classList.add('spinning');
-  toast('Syncing live data from Redash…', 'info');
+  toast('Fetching live data from Redash via Claude…', 'info');
 
-  // Direct fetch — Redash allows browser access (no CORS restriction)
-  const directURL = `${REDASH_BASE}/api/queries/${QUERIES.fleet.id}/results.csv?api_key=${QUERIES.fleet.key}`;
-  let result = null;
-
-  try {
-    const res = await fetch(directURL);
-    if (res.ok) {
-      const text = await res.text();
-      result = parseCSV(text);
-    }
-  } catch(e) {
-    console.warn('Direct fetch failed, trying Claude API proxy…', e.message);
-  }
-
-  // Fallback: try via Claude API proxy if direct fails
-  if (!result || result.length < 10) {
-    result = await fetchViaClaudeAPI(QUERIES.fleet, {});
-  }
+  // Always use Claude API proxy — Redash blocks direct browser fetches (CORS)
+  const result = await fetchViaClaudeAPI(QUERIES.fleet, {});
 
   if (result && result.length > 10) {
     fleetData = result;
     lastSync  = new Date();
     document.getElementById('syncTime').textContent =
       `Synced ${lastSync.toLocaleTimeString('en-GB')} · ${fleetData.length} vehicles`;
-    toast(`✓ ${fleetData.length} vehicles loaded from Redash`, 'ok');
+    toast(`✓ ${fleetData.length} vehicles loaded`, 'ok');
   } else {
-    // Last resort: embedded fallback (partial data — shows warning)
     if (fleetData.length === 0) loadFallback();
-    toast('⚠ Live sync failed — showing cached data. Check network.', 'err');
-    document.getElementById('syncTime').textContent = '⚠ Cached data — sync failed';
+    toast('⚠ Sync failed — check your Claude API key in Settings', 'err');
+    document.getElementById('syncTime').textContent = '⚠ Using cached data — API key needed';
   }
 
-  // Reload shared workshop log
   await loadWsLogFromStorage();
-
   isSyncing = false;
   btn.classList.remove('spinning');
   renderAll();
