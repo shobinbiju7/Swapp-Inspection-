@@ -522,23 +522,15 @@ function launchApp() {
 //  FETCH REDASH VIA CLAUDE API (solves CORS)
 // ═══════════════════════════════════════════════════════════════════
 async function fetchViaClaudeAPI(query, params = {}) {
-  let url = `${REDASH_BASE}/api/queries/${query.id}/results.csv?api_key=${query.key}`;
-  if (params.start_date) url += `&p_start_date=${params.start_date}`;
-  if (params.end_date)   url += `&p_end_date=${params.end_date}`;
+  const url = `${REDASH_BASE}/api/queries/${query.id}/results.csv?api_key=${query.key}`;
 
-  // Strategy 1: try direct CORS fetch first (fast, free)
-  try {
-    const direct = await fetch(url, { mode: 'cors' });
-    if (direct.ok) {
-      const csv = await direct.text();
-      const parsed = parseCSV(csv);
-      if (parsed.length > 10) return parsed;
-    }
-  } catch(e) { /* CORS blocked, fall through */ }
+  if (!CLAUDE_KEY || !CLAUDE_KEY.startsWith('sk-ant')) {
+    console.warn('No valid Claude API key');
+    return null;
+  }
 
-  // Strategy 2: Claude API with web_search tool to fetch the Redash CSV
   try {
-    updateSyncStatus('Calling Claude API to fetch Redash data...');
+    console.log('Calling Claude API to fetch:', url);
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -548,75 +540,59 @@ async function fetchViaClaudeAPI(query, params = {}) {
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 16000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: 'You are a data fetching assistant. When given a URL, use the web_search tool to fetch it and return ONLY the raw CSV content. Never add explanations, markdown formatting, or code blocks.',
+        system: 'You fetch URLs and return their raw content. Return ONLY the raw CSV text, nothing else. No markdown. No explanation.',
         messages: [{
           role: 'user',
-          content: `Fetch this URL using web_search and return ONLY the raw CSV text. Start your reply directly with the header row "name,id,number_plate,make,model,year,car_type,status,originalcarplate" and include all data rows. No other text. URL: ${url}`
+          content: `Fetch this URL and return ONLY its raw CSV content. The first line must be the CSV header. No markdown, no explanation, no code blocks: ${url}`
         }],
       }),
     });
 
+    console.log('Claude API response status:', res.status);
+
     if (!res.ok) {
       const errText = await res.text();
-      console.warn('Claude API error:', res.status, errText);
+      console.error('Claude API HTTP error:', res.status, errText.slice(0, 300));
       return null;
     }
-    const data = await res.json();
-    if (data.error) { console.warn('Claude error:', data.error); return null; }
 
-    // Extract text from all content blocks (including after tool use)
-    let text = data.content
+    const data = await res.json();
+    console.log('Claude API response type:', data.stop_reason, 'blocks:', data.content?.length);
+
+    if (data.error) {
+      console.error('Claude API error:', data.error);
+      return null;
+    }
+
+    // Collect all text blocks from the response
+    const allText = (data.content || [])
       .filter(b => b.type === 'text')
       .map(b => b.text)
-      .join('');
+      .join('\n');
 
-    // Strip markdown code fences if Claude added them
-    text = text.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+    console.log('Raw text length:', allText.length, 'preview:', allText.slice(0, 150));
 
-    // If the response looks like CSV (has commas and newlines), parse it
-    if (text && text.length > 50 && text.includes(',') && text.includes('\n')) {
-      const parsed = parseCSV(text);
+    // Clean up any markdown
+    const clean = allText.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+
+    if (clean.length > 100 && clean.includes('number_plate')) {
+      const parsed = parseCSV(clean);
+      console.log('Parsed rows:', parsed.length);
       if (parsed.length > 10) return parsed;
     }
 
-    // Also check tool_result blocks for the fetched content
-    for (const block of data.content) {
-      if (block.type === 'tool_result' || (block.type === 'tool_use' && block.input)) continue;
-      if (block.type === 'text' && block.text && block.text.includes('number_plate')) {
-        const parsed = parseCSV(block.text);
-        if (parsed.length > 10) return parsed;
-      }
-    }
+    console.warn('Response did not contain valid CSV. Length:', clean.length);
     return null;
+
   } catch (e) {
-    console.warn('Claude API fetch failed:', e.message);
+    console.error('fetchViaClaudeAPI error:', e.message);
     return null;
   }
 }
-
-// Direct fetch (works if CORS is open, or when running from same domain)
-async function fetchDirect(query, params = {}) {
-  let url = `${REDASH_BASE}/api/queries/${query.id}/results.csv?api_key=${query.key}`;
-  if (params.start_date) url += `&p_start_date=${params.start_date}`;
-  if (params.end_date)   url += `&p_end_date=${params.end_date}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return parseCSV(await res.text());
-  } catch (e) {
-    return null; // Fall back to Claude API
-  }
-}
-
-async function fetchRedash(query, params = {}) {
-  // Try direct first (fast, no cost), fall back to Claude API
-  const direct = await fetchDirect(query, params);
-  if (direct && direct.length > 0) return direct;
-  return fetchViaClaudeAPI(query, params);
-}
+// Direct fetch removed — using Claude API proxy only (CORS blocked)
 
 // ═══════════════════════════════════════════════════════════════════
 //  CSV PARSER
